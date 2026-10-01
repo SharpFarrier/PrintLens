@@ -1,0 +1,1284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<title>PrintLens</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FFFFFF; --ink:#1C1F23; --muted:#646B73; --line:#E2E4E7; --field:#F6F7F8;
+  --liner:#EFE9D2; --liner-edge:#E2D9B8;
+  --act:#C2410C; --act-dk:#9A3412; --ok:#15803D; --bad:#B91C1C; --warn:#B45309;
+  --head:"Space Grotesk",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 var(--body);-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--act);outline-offset:2px}
+.hidden{display:none!important}
+
+/* Top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:10px 16px;gap:12px}
+.brand{font:700 19px/1 var(--head);letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.brand svg{flex:none}
+.chip{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:7px 13px;font-weight:600;font-size:13.5px;
+  border:1.5px solid var(--act);background:#fff;color:var(--act)}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.chip.on{border-color:#BBE5C8;background:#F0FAF3;color:var(--ok)}
+.chip.on .name{color:var(--ink)}
+.chip.err{border-color:#F3C2C2;background:#FDF0F0;color:var(--bad)}
+
+/* Layout */
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 120px}
+@media (min-width:900px){
+  .wrap{display:grid;grid-template-columns:minmax(340px,440px) 1fr;gap:40px;padding-top:24px}
+  .stage{position:sticky;top:84px;align-self:start}
+}
+
+/* Hero: label on its backing roll */
+.stage{padding:18px 0 6px}
+.roll{background:var(--liner);border-left:1px solid var(--liner-edge);border-right:1px solid var(--liner-edge);
+  margin:0 auto;padding:0 14px;max-width:var(--rollw,380px);position:relative}
+.roll .ghost{height:14px;background:#fff;opacity:.7}
+.roll .ghost.top{border-radius:0 0 7px 7px;margin-bottom:12px}
+.roll .ghost.bot{border-radius:7px 7px 0 0;margin-top:12px}
+.lbl{background:#fff;border-radius:7px;box-shadow:0 0 0 1px rgba(120,100,40,.12),0 1px 2px rgba(120,100,40,.18);overflow:hidden;position:relative}
+.lbl canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+.lbl.fresh{animation:feed .45s ease-out}
+@keyframes feed{from{transform:translateY(10px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.lbl.fresh{animation:none}}
+.pvmeta{max-width:380px;margin:10px auto 0;display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.rollpick{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink)}
+.rollpick select{width:auto;padding:6px 28px 6px 10px;font-size:14px;font-weight:600;background-color:#fff}
+.nudge{max-width:380px;margin:10px auto 0;padding:10px 12px;border-radius:var(--r);background:#FFF8EB;color:#7A3E06;font-size:13.5px;display:flex;gap:10px;align-items:center}
+.nudge span{flex:1}
+.nudge .btn{padding:7px 11px;font-size:13.5px}
+.warns{max-width:380px;margin:8px auto 0;padding:0;list-style:none}
+.warns li{font-size:13px;color:var(--warn);padding:6px 10px;background:#FFF8EB;border-radius:8px;margin-top:6px}
+.warns li.err{color:var(--bad);background:#FDF0F0}
+.nousb{max-width:380px;margin:12px auto 0;padding:12px 14px;border-radius:var(--r);background:#FDF0F0;color:var(--bad);font-size:14px}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;padding:4px;background:var(--field);border-radius:12px;margin:18px 0 18px;position:sticky;top:62px;z-index:10}
+@media (min-width:900px){.tabs{position:static;margin-top:0}}
+.tabs button{flex:1;border:0;background:none;padding:9px 2px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+h2{font:600 17px/1.2 var(--head);margin:26px 0 10px;letter-spacing:-.01em}
+h2:first-child{margin-top:4px}
+
+/* Fields */
+.f{margin-bottom:14px}
+.f label,.flabel{display:block;font-weight:600;font-size:13.5px;margin-bottom:6px}
+.f .hint{font-size:12.5px;color:var(--muted);margin-top:5px}
+input[type=text],input[type=number],textarea,select{width:100%;border:1px solid var(--line);background:var(--field);border-radius:var(--r);
+  padding:11px 12px;font-size:16px;outline:none;transition:border-color .15s,background .15s}
+input:focus,textarea:focus,select:focus{border-color:var(--act);background:#fff}
+input.code{font-family:var(--mono);font-weight:500;letter-spacing:.02em}
+textarea{min-height:96px;resize:vertical;font-family:var(--mono);font-size:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--field)}
+.seg button{flex:1;white-space:nowrap;border:0;background:none;padding:10px 6px;font-weight:600;font-size:14px;color:var(--muted);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+.range{display:flex;align-items:center;gap:12px}
+.range input{flex:1;accent-color:var(--act)}
+.range output{font-family:var(--mono);font-weight:700;min-width:2ch;text-align:right}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.switch input{width:22px;height:22px;accent-color:var(--act)}
+
+/* Buttons */
+.btn{border:1px solid var(--line);background:#fff;border-radius:var(--r);padding:11px 14px;font-weight:600;font-size:14.5px}
+.btn:hover{border-color:#C9CDD2}
+.btn.primary{background:var(--act);border-color:var(--act);color:#fff}
+.btn.primary:hover{background:var(--act-dk)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.link{border:0;background:none;color:var(--act);font-weight:600;padding:0;text-decoration:underline;text-underline-offset:3px}
+
+/* Bulk */
+.drop{border:1.5px dashed #C9CDD2;border-radius:var(--r);padding:18px;text-align:center;color:var(--muted);font-size:14px;background:var(--field)}
+.drop.over{border-color:var(--act);background:#FFF5EF}
+.drop b{color:var(--ink)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+.tbl th{text-align:left;font-weight:600;font-size:12.5px;color:var(--muted);padding:6px 6px;border-bottom:1px solid var(--line)}
+.tbl td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr.sel td{background:#FFF8F3}
+.tbl tr.bad td:first-child{color:var(--bad)}
+.tbl .v{font-family:var(--mono);font-weight:500;word-break:break-all}
+.tbl .t{color:var(--muted);font-size:13px}
+.tbl input[type=number]{width:64px;padding:6px 8px;font-size:15px}
+.tbl .x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px}
+.tblwrap{overflow-x:auto}
+.empty{color:var(--muted);font-size:14px;padding:18px 0}
+
+/* PDF pages */
+.pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;margin-top:8px}
+.pg{border:1.5px solid var(--line);border-radius:var(--r);padding:8px;background:#fff;position:relative;text-align:left}
+.pg.focus{border-color:var(--ink)}
+.pg.off{opacity:.45}
+.pg canvas{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:4px;background:#fff}
+.pg .cap{font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg input{position:absolute;top:12px;right:12px;width:22px;height:22px;accent-color:var(--act)}
+.banner{padding:12px 14px;border-radius:var(--r);background:#FFF8EB;color:#7A3E06;font-size:14px;margin-bottom:14px}
+.banner .btn{margin-top:8px}
+.progress{font-size:13.5px;color:var(--muted);padding:6px 0}
+.statusline{margin-top:10px;font-size:14px;padding:10px 12px;border-radius:var(--r);background:var(--field)}
+.statusline.ok{background:#F0FAF3;color:var(--ok)}
+.statusline.bad{background:#FDF0F0;color:var(--bad)}
+
+/* History */
+.hist{list-style:none;margin:0;padding:0}
+.hist li{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.hist .what{flex:1;min-width:0}
+.hist .what b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist .what span{font-size:12.5px;color:var(--muted)}
+.hist .what span.err{color:var(--bad)}
+.hist .n{font:700 18px var(--head)}
+
+/* Printer pane */
+.dev{border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.dev .nm{font:600 16px var(--head)}
+.dev .ids{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:2px}
+details{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-top:10px}
+details summary{font-weight:600;cursor:pointer}
+details p,details li{font-size:14px;color:#3C4248}
+details ol{padding-left:20px;margin:8px 0 0}
+
+/* Dock */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--line);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;justify-content:center}
+.dock .in{display:flex;gap:10px;align-items:center;width:100%;max-width:1080px}
+.step{display:flex;align-items:center;border:1px solid var(--line);border-radius:var(--r);background:var(--field)}
+.step button{border:0;background:none;width:40px;height:46px;font-size:20px;font-weight:600}
+.step input{width:52px;border:0;background:none;text-align:center;padding:0;font:700 17px var(--head)}
+.step input::-webkit-inner-spin-button{-webkit-appearance:none}
+.printbtn{flex:1;height:48px;font-size:16px}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;
+  background:var(--ink);color:#fff;padding:11px 16px;border-radius:10px;font-weight:500;font-size:14px;max-width:calc(100% - 32px);
+  box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.toast.bad{background:var(--bad)}
+.toast.good{background:var(--ok)}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="2" width="18" height="20" rx="3" fill="#EFE9D2"/><rect x="5.5" y="5" width="13" height="8" rx="1.5" fill="#fff" stroke="#1C1F23" stroke-width="1.2"/><path d="M8 7v4M9.5 7v4M11.5 7v4M12.5 7v4M14.5 7v4M16 7v4" stroke="#1C1F23" stroke-width=".9"/><rect x="5.5" y="15" width="13" height="4" rx="1.5" fill="#fff" opacity=".8"/></svg>
+    PrintLens
+  </div>
+  <button class="chip" id="chip" type="button"><span class="dot"></span><span class="name" id="chipName">Connect printer</span></button>
+</header>
+
+<main class="wrap">
+  <section class="stage" aria-label="Label preview">
+    <div class="roll">
+      <div class="ghost top"></div>
+      <div class="lbl" id="lbl"><canvas id="pv" width="400" height="200" aria-label="Preview of the label"></canvas></div>
+      <div class="ghost bot"></div>
+    </div>
+    <div class="pvmeta">
+      <label class="rollpick" for="rollSel">Roll <select id="rollSel" aria-label="Loaded roll"></select></label>
+      <span id="pvWhat">Preview</span>
+    </div>
+    <div class="nudge hidden" id="calNudge"><span>Changed the roll in the printer? Calibrate once so it finds the gaps.</span><button class="btn" type="button" id="nudgeCal">Calibrate</button><button class="x link" type="button" id="nudgeX" aria-label="Dismiss">✕</button></div>
+    <ul class="warns" id="warns"></ul>
+    <div class="nousb hidden" id="nousb">This browser can't reach USB printers. Open PrintLens in Chrome on your Mac or Android phone.</div>
+  </section>
+
+  <section class="panel">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="single" aria-selected="true">Single</button>
+      <button role="tab" data-tab="bulk" aria-selected="false">Bulk</button>
+      <button role="tab" data-tab="pdf" aria-selected="false">PDF</button>
+      <button role="tab" data-tab="history" aria-selected="false">History</button>
+      <button role="tab" data-tab="printer" aria-selected="false">Printer</button>
+    </nav>
+
+    <!-- SINGLE -->
+    <div id="tab-single" role="tabpanel">
+      <div class="f">
+        <span class="flabel">Code type</span>
+        <div class="seg" data-seg="type">
+          <button type="button" data-v="CODE128">Code 128</button>
+          <button type="button" data-v="EAN13">EAN-13</button>
+          <button type="button" data-v="QR">QR</button>
+        </div>
+      </div>
+      <div class="f">
+        <label for="sValue">Barcode value</label>
+        <input id="sValue" class="code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="HT-NEXON-QS">
+        <div class="hint" id="sValueHint">SKU, FNSKU or any text. Letters, numbers and symbols all work.</div>
+      </div>
+      <div class="f">
+        <label for="sTop">Line above</label>
+        <input id="sTop" type="text" autocomplete="off" placeholder="Optional, e.g. Nexon Folding Bed">
+      </div>
+      <div class="f">
+        <span class="flabel">Line below</span>
+        <div class="seg" data-seg="bottomMode">
+          <button type="button" data-v="value">The value</button>
+          <button type="button" data-v="custom">Custom</button>
+          <button type="button" data-v="none">Nothing</button>
+        </div>
+        <input id="sBottom" type="text" autocomplete="off" placeholder="e.g. MRP 4,999" class="hidden" style="margin-top:8px">
+      </div>
+      <div class="f">
+        <span class="flabel">Text size</span>
+        <div class="seg" data-seg="textSize">
+          <button type="button" data-v="S">Small</button>
+          <button type="button" data-v="M">Medium</button>
+          <button type="button" data-v="L">Large</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BULK -->
+    <div id="tab-bulk" role="tabpanel" class="hidden">
+      <div class="drop" id="drop">
+        <b>Drop a CSV or Excel file</b> or <button class="link" type="button" id="pickFile">choose one</button>
+        <input type="file" id="file" accept=".csv,.tsv,.txt,.xlsx,.xls" class="hidden">
+      </div>
+      <div class="f" style="margin-top:12px">
+        <label for="paste">Or paste rows</label>
+        <textarea id="paste" placeholder="HT-NEXON-QS, 4&#10;HT-CHAIR-BLK, 2"></textarea>
+        <div class="hint">Columns it reads: SKU or Barcode, Qty or Copies, Name (line above), Note (line below). Without a header row, the first column is the code and the second is copies.</div>
+        <div class="btns" style="margin-top:8px"><button class="btn" type="button" id="addPaste">Add rows</button></div>
+      </div>
+
+      <div class="f">
+        <span class="flabel">Code type</span>
+        <div class="seg" data-seg="bulkType">
+          <button type="button" data-v="CODE128">Code 128</button>
+          <button type="button" data-v="EAN13">EAN-13</button>
+          <button type="button" data-v="QR">QR</button>
+        </div>
+      </div>
+      <div class="switch">
+        <span>Print the value under the code when a row has no note</span>
+        <input type="checkbox" id="bulkShowValue" checked>
+      </div>
+
+      <h2 id="bulkHead">Labels to print</h2>
+      <div id="bulkEmpty" class="empty">No rows yet. Add a file or paste rows above.</div>
+      <div class="tblwrap hidden" id="bulkWrap">
+        <table class="tbl">
+          <thead><tr><th>Code</th><th>Copies</th><th></th></tr></thead>
+          <tbody id="bulkBody"></tbody>
+        </table>
+        <div class="btns" style="margin-top:12px"><button class="btn" type="button" id="bulkClear">Clear all rows</button></div>
+      </div>
+    </div>
+
+    <!-- PDF -->
+    <div id="tab-pdf" role="tabpanel" class="hidden">
+      <div class="banner hidden" id="pdfRollWarn"></div>
+      <div class="drop" id="pdfDrop">
+        <b>Drop label PDFs</b> or <button class="link" type="button" id="pdfPick">choose files</button>
+        <input type="file" id="pdfFile" accept="application/pdf,.pdf" multiple class="hidden">
+        <div style="margin-top:6px;font-size:13px">Each page prints as one label. Multi-page PDFs print in one go.</div>
+      </div>
+      <div class="f" style="margin-top:14px">
+        <span class="flabel">Page fit</span>
+        <div class="seg" data-seg="pdfFit">
+          <button type="button" data-v="fit">Whole page</button>
+          <button type="button" data-v="fill">Fill label</button>
+        </div>
+        <div class="hint" id="pdfFitHint">Shrinks the page if needed so nothing is cut off.</div>
+      </div>
+      <div class="f">
+        <label for="pdfTh">Light grey detail</label>
+        <div class="range"><input id="pdfTh" type="range" min="60" max="220" step="4"><output id="pdfThOut">128</output></div>
+        <div class="hint">Slide right if faint grey text disappears. Slide left if shaded areas print as solid black.</div>
+      </div>
+      <h2 id="pdfHead">Pages</h2>
+      <div class="progress hidden" id="pdfProgress"></div>
+      <div id="pdfEmpty" class="empty">No PDFs yet. Add the label PDF from your shipping tool.</div>
+      <div class="pages" id="pdfPages"></div>
+      <div class="btns hidden" id="pdfTools" style="margin-top:12px">
+        <button class="btn" type="button" id="pdfAll">Select all</button>
+        <button class="btn" type="button" id="pdfNone">Select none</button>
+        <button class="btn" type="button" id="pdfClear">Remove all</button>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="tab-history" role="tabpanel" class="hidden">
+      <ul class="hist" id="hist"></ul>
+      <div id="histEmpty" class="empty">Nothing printed yet. Jobs you send show up here so you can print them again.</div>
+      <div class="btns hidden" id="histTools" style="margin-top:12px"><button class="btn" type="button" id="histClear">Clear history</button></div>
+    </div>
+
+    <!-- PRINTER -->
+    <div id="tab-printer" role="tabpanel" class="hidden">
+      <h2>Connection</h2>
+      <div class="dev">
+        <div class="nm" id="devName">No printer connected</div>
+        <div class="ids" id="devIds">Plug the TSC in by USB (OTG cable on Android), then connect.</div>
+        <div class="btns" style="margin-top:12px">
+          <button class="btn primary" type="button" id="devConnect">Connect printer</button>
+          <button class="btn hidden" type="button" id="devDisconnect">Disconnect</button>
+        </div>
+        <div style="margin-top:10px;font-size:13.5px;color:var(--muted)">Printer not in the list? <button class="link" type="button" id="devAll">Show all USB devices</button></div>
+      </div>
+
+      <div class="btns" style="margin-top:12px"><button class="btn" type="button" id="toolStatus">Check printer status</button></div>
+      <div class="statusline hidden" id="statusLine"></div>
+
+      <h2>Roll</h2>
+      <div class="f"><label for="rollName">Roll name</label><input id="rollName" type="text" autocomplete="off"></div>
+      <div class="row3">
+        <div class="f"><label for="cW">Width (mm)</label><input id="cW" type="number" inputmode="decimal" min="10" max="108" step="1"></div>
+        <div class="f"><label for="cH">Height (mm)</label><input id="cH" type="number" inputmode="decimal" min="10" max="300" step="1"></div>
+        <div class="f"><label for="cGap">Gap (mm)</label><input id="cGap" type="number" inputmode="decimal" min="0" max="10" step="0.5"></div>
+      </div>
+      <div class="hint" style="margin:-6px 0 10px;font-size:12.5px;color:var(--muted)">Settings on this tab are saved to the roll selected above the preview.</div>
+      <div class="btns">
+        <button class="btn" type="button" id="rollAdd">Add a roll</button>
+        <button class="btn" type="button" id="rollDel">Delete this roll</button>
+      </div>
+
+      <h2>Print quality</h2>
+      <div class="f">
+        <label for="cDensity">Darkness</label>
+        <div class="range"><input id="cDensity" type="range" min="0" max="15" step="1"><output id="cDensityOut">8</output></div>
+        <div class="hint">Raise it if bars look faint or gray and scans fail. Lower it if bars bleed together.</div>
+      </div>
+      <div class="f">
+        <label for="cSpeed">Speed (inches per second)</label>
+        <select id="cSpeed"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+      </div>
+
+      <h2>Position</h2>
+      <div class="row2">
+        <div class="f"><label for="cSX">Move right (dots)</label><input id="cSX" type="number" inputmode="numeric" step="1" min="-200" max="200"></div>
+        <div class="f"><label for="cSY">Move down (dots)</label><input id="cSY" type="number" inputmode="numeric" step="1" min="-200" max="200"></div>
+      </div>
+      <div class="hint" style="margin:-6px 0 6px;font-size:12.5px;color:var(--muted)">8 dots = 1 mm. Use negative numbers to move left or up.</div>
+      <div class="switch"><span>Print upside down</span><input type="checkbox" id="cFlip"></div>
+
+      <h2>Printer tools</h2>
+      <div class="btns">
+        <button class="btn" type="button" id="toolTest">Print test label</button>
+        <button class="btn" type="button" id="toolFeed">Feed one label</button>
+        <button class="btn" type="button" id="toolCal">Calibrate gap sensor</button>
+      </div>
+      <div class="hint" style="font-size:12.5px;color:var(--muted);margin-top:8px">Calibrate after loading a new roll or if labels print across the gap.</div>
+
+      <div class="switch" style="margin-top:14px"><span>Swap black and white in PDF labels<br><small style="color:var(--muted)">Only if a PDF label prints as a solid black block.</small></span><input type="checkbox" id="cInvert"></div>
+
+      <details>
+        <summary>Send raw TSPL commands</summary>
+        <p>For testing. Commands go to the printer exactly as typed.</p>
+        <textarea id="raw" spellcheck="false">SIZE 50 mm,25 mm
+GAP 2 mm,0 mm
+CLS
+TEXT 20,20,"3",0,1,1,"Hello from PrintLens"
+PRINT 1</textarea>
+        <div class="btns" style="margin-top:8px"><button class="btn" type="button" id="rawSend">Send commands</button></div>
+      </details>
+
+      <details>
+        <summary>Setup on Android</summary>
+        <ol>
+          <li>Plug the TSC into the phone with a USB OTG cable and switch the printer on.</li>
+          <li>If Android asks which app to open, dismiss it.</li>
+          <li>Open PrintLens in Chrome, tap Connect printer, and pick the TSC.</li>
+          <li>Tap the Chrome menu and choose Add to Home screen to use it like an app.</li>
+        </ol>
+      </details>
+      <details>
+        <summary>Setup on Mac</summary>
+        <ol>
+          <li>Connect the TSC by USB and open PrintLens in Chrome.</li>
+          <li>Click Connect printer and pick the TSC.</li>
+          <li>If connecting fails with the printer busy, quit any TSC or label software that is open, then unplug and replug the printer.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer class="dock">
+  <div class="in">
+    <div class="step" id="copiesStep">
+      <button type="button" id="cMinus" aria-label="Fewer copies">−</button>
+      <input id="copies" type="number" inputmode="numeric" min="1" max="999" value="1" aria-label="Copies">
+      <button type="button" id="cPlus" aria-label="More copies">+</button>
+    </div>
+    <button class="btn primary printbtn" type="button" id="printBtn">Print 1 label</button>
+  </div>
+</footer>
+
+<div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="tspl.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const T = window.TSPL;
+  const DPI = 203;
+  const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  /* ---------- storage ---------- */
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('printlens.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('printlens.' + k, JSON.stringify(v)); } catch (e) { /* storage full or blocked */ } }
+  };
+
+  const oldSettings = store.get('settings', null);
+  const mig = T.migrateProfiles(store.get('profiles', null), store.get('activeProfile', null), oldSettings);
+
+  const state = {
+    tab: 'single',
+    profiles: mig.profiles,
+    active: mig.active,
+    prefs: Object.assign({ textSize: (oldSettings && oldSettings.textSize) || 'M', pdfFit: 'fit', pdfThreshold: 128, invertBitmap: false }, store.get('prefs', {})),
+    single: Object.assign({ type: 'CODE128', value: '', top: '', bottomMode: 'value', bottom: '' }, store.get('single', {})),
+    copies: 1,
+    bulk: store.get('bulk', { type: 'CODE128', showValue: true, rows: [] }),
+    bulkSel: 0,
+    pdf: { pages: [], focus: 0, rendering: false, gen: 0, seq: 0 },
+    history: store.get('history', []),
+    printing: false
+  };
+
+  function prof() { return state.profiles.find((p) => p.id === state.active) || state.profiles[0]; }
+  function S() { return Object.assign({}, T.DEFAULT_SETTINGS, prof(), { textSize: state.prefs.textSize, dpi: DPI }); }
+  function saveProfiles() { store.set('profiles', state.profiles); store.set('activeProfile', state.active); }
+  function savePrefs() { store.set('prefs', state.prefs); }
+  function dims() { const s = S(); return { W: T.mmToDots(s.widthMm, DPI), H: T.mmToDots(s.heightMm, DPI) }; }
+  saveProfiles();
+
+  /* ---------- measuring with the same libraries that draw the preview ---------- */
+  const mCache = new Map();
+  const measure = {
+    code128Modules(v) {
+      const k = 'c' + v;
+      if (mCache.has(k)) return mCache.get(k);
+      let n = T.code128Modules(v);
+      try {
+        if (window.JsBarcode) {
+          const c = document.createElement('canvas');
+          JsBarcode(c, v, { format: 'CODE128', width: 1, height: 1, margin: 0, displayValue: false });
+          if (c.width > 0) n = c.width;
+        }
+      } catch (e) { /* fall back to estimate */ }
+      mCache.set(k, n); return n;
+    },
+    qrModules(v) {
+      const k = 'q' + v;
+      if (mCache.has(k)) return mCache.get(k);
+      let n = T.qrModules(v);
+      try { if (window.qrcode) { const q = qrcode(0, 'M'); q.addData(v); q.make(); n = q.getModuleCount(); } } catch (e) { /* fall back */ }
+      mCache.set(k, n); return n;
+    }
+  };
+
+  /* ---------- barcode labels ---------- */
+  function singleLabel() {
+    const s = state.single;
+    const val = T.validateValue(s.type, s.value);
+    let bottom = '';
+    if (s.bottomMode === 'value') bottom = val.ok ? val.full : T.clean(s.value);
+    else if (s.bottomMode === 'custom') bottom = s.bottom;
+    return { type: s.type, value: s.value, top: s.top, bottom: bottom };
+  }
+  function bulkLabel(r) {
+    const b = state.bulk;
+    const val = T.validateValue(b.type, r.value);
+    const bottom = r.bottom || (b.showValue ? (val.ok ? val.full : r.value) : '');
+    return { type: b.type, value: r.value, top: r.top, bottom: bottom };
+  }
+
+  /* ---------- preview ---------- */
+  const pv = $('pv');
+  function blank(W, H, msg) {
+    const ctx = pv.getContext('2d');
+    pv.width = W; pv.height = H;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    if (msg) {
+      ctx.fillStyle = '#A0A6AD'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '500 ' + Math.round(Math.min(H / 9, W / 14)) + 'px Inter, sans-serif';
+      ctx.fillText(msg, W / 2, H / 2);
+    }
+    return ctx;
+  }
+  function drawLayout(lay) {
+    const ctx = blank(lay.W, lay.H);
+    const sx = Math.round(Number(S().shiftX) || 0);
+    lay.items.forEach((it) => {
+      const x = it.x + sx;
+      if (it.kind === 'text') {
+        const cw = T.FONTS[it.font][0], ch = T.FONTS[it.font][1];
+        ctx.fillStyle = '#000'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.font = '700 ' + Math.min(ch, cw / 0.6) + 'px "JetBrains Mono", monospace';
+        ctx.fillText(it.text, x, it.y, it.w);
+      } else if (it.kind === 'barcode') {
+        if (window.JsBarcode) {
+          const off = document.createElement('canvas');
+          try {
+            JsBarcode(off, it.value, {
+              format: it.type === 'EAN13' ? 'EAN13' : 'CODE128', width: it.narrow, height: it.height,
+              margin: 0, displayValue: false, flat: true, background: '#ffffff', lineColor: '#000000'
+            });
+            ctx.drawImage(off, x, it.y);
+          } catch (e) { stripes(ctx, x, it); }
+        } else stripes(ctx, x, it);
+      } else if (it.kind === 'qr') {
+        ctx.fillStyle = '#000';
+        if (window.qrcode) {
+          const q = qrcode(0, 'M'); q.addData(it.value); q.make();
+          const n = q.getModuleCount();
+          for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) ctx.fillRect(x + c * it.cell, it.y + r * it.cell, it.cell, it.cell);
+        } else { ctx.strokeRect(x, it.y, it.size, it.size); }
+      }
+    });
+  }
+  function stripes(ctx, x, it) {
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < it.w; i += it.narrow * 3) ctx.fillRect(x + i, it.y, it.narrow, it.height);
+  }
+  // Paint a packed 1-bit bitmap onto a canvas at full size
+  function paintBitmap(canvas, bm) {
+    canvas.width = bm.w; canvas.height = bm.h;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(bm.w, bm.h);
+    const d = img.data;
+    for (let y = 0; y < bm.h; y++) {
+      for (let xb = 0; xb < bm.wb; xb++) {
+        const byte = bm.data[y * bm.wb + xb];
+        for (let b = 0; b < 8; b++) {
+          const x = xb * 8 + b; if (x >= bm.w) break;
+          const v = (byte >> (7 - b)) & 1 ? 255 : 0;
+          const i = (y * bm.w + x) * 4;
+          d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function sizeRoll() {
+    const { W, H } = dims();
+    const maxH = window.innerWidth >= 900 ? 560 : 340;
+    const w = Math.round(Math.min(380, maxH * W / H)) + 28;
+    document.documentElement.style.setProperty('--rollw', w + 'px');
+  }
+
+  function refresh(animate) {
+    sizeRoll();
+    const warns = $('warns'); warns.innerHTML = '';
+    const { W, H } = dims();
+    let what = 'Preview';
+    if (state.tab === 'pdf') {
+      const p = state.pdf.pages[state.pdf.focus];
+      if (!p) blank(W, H, 'Add a PDF to preview');
+      else if (p.bm && p.bm.w === W && p.bm.h === H) {
+        paintBitmap(pv, p.bm);
+        what = 'Page ' + (state.pdf.focus + 1) + ' of ' + state.pdf.pages.length;
+      } else blank(W, H, 'Preparing preview…');
+      if (p && p.place && p.place.dh > H + 2) addWarn('Fill label crops the top and bottom of this page.');
+      if (p && p.place && p.place.dw > W + 2) addWarn('Fill label crops the sides of this page.');
+    } else {
+      let label = null;
+      if (state.tab === 'bulk') {
+        const r = state.bulk.rows[state.bulkSel] || state.bulk.rows[0];
+        if (r) { label = bulkLabel(r); what = 'Row ' + (state.bulk.rows.indexOf(r) + 1) + ' of ' + state.bulk.rows.length; }
+      } else label = singleLabel();
+      if (!label) blank(W, H, 'Add rows to preview');
+      else {
+        const lay = T.layoutLabel(label, S(), measure);
+        if (!T.clean(label.value)) blank(W, H, 'Enter a barcode value');
+        else if (lay.error) { blank(W, H, 'Fix the value to preview'); addWarn(lay.error, true); }
+        else { drawLayout(lay); lay.warnings.forEach((w) => addWarn(w)); }
+      }
+    }
+    $('pvWhat').textContent = what;
+    if (animate) { const l = $('lbl'); l.classList.remove('fresh'); void l.offsetWidth; l.classList.add('fresh'); }
+    updateDock();
+  }
+  function addWarn(t, err) { const li = document.createElement('li'); li.textContent = t; if (err) li.className = 'err'; $('warns').appendChild(li); }
+
+  /* ---------- dock ---------- */
+  function bulkJobs() {
+    return state.bulk.rows
+      .filter((r) => T.validateValue(state.bulk.type, r.value).ok)
+      .map((r) => ({ label: bulkLabel(r), copies: r.copies }));
+  }
+  function selectedPages() { return state.pdf.pages.filter((p) => p.selected); }
+  function updateDock() {
+    const btn = $('printBtn');
+    document.querySelector('.dock').classList.toggle('hidden', state.tab === 'printer' || state.tab === 'history');
+    $('copiesStep').classList.toggle('hidden', !(state.tab === 'single' || state.tab === 'pdf'));
+    $('copies').setAttribute('aria-label', state.tab === 'pdf' ? 'Copies of each page' : 'Copies');
+    let n = 0;
+    if (state.tab === 'single') n = T.validateValue(state.single.type, state.single.value).ok ? state.copies : 0;
+    else if (state.tab === 'bulk') n = bulkJobs().reduce((a, j) => a + j.copies, 0);
+    else if (state.tab === 'pdf') n = selectedPages().length * state.copies;
+    btn.textContent = state.printing ? 'Printing…' : (n ? 'Print ' + n + ' label' + (n === 1 ? '' : 's') : 'Print');
+    btn.disabled = state.printing || n === 0 || !USB.supported || (state.tab === 'pdf' && state.pdf.rendering);
+  }
+
+  /* ---------- toast ---------- */
+  let toastT;
+  function toast(msg, kind) {
+    const t = $('toast'); t.textContent = msg; t.className = 'toast' + (kind ? ' ' + kind : '');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hidden'), kind === 'bad' ? 7000 : 3000);
+  }
+
+  /* ---------- WebUSB ---------- */
+  const USB = {
+    supported: !!navigator.usb,
+    dev: null, iface: null, ep: null, epIn: null,
+    async pick(all) {
+      const filters = all ? [] : [{ vendorId: 0x1203 }, { classCode: 7 }];
+      const d = await navigator.usb.requestDevice({ filters: filters });
+      await this.attach(d);
+    },
+    async attach(d) {
+      if (!d.opened) await d.open();
+      if (d.configuration === null) await d.selectConfiguration(1);
+      let best = null;
+      d.configuration.interfaces.forEach((iface) => {
+        iface.alternates.forEach((alt) => {
+          const ep = alt.endpoints.find((e) => e.direction === 'out' && e.type === 'bulk');
+          if (!ep) return;
+          const epIn = alt.endpoints.find((e) => e.direction === 'in' && e.type === 'bulk');
+          const score = (alt.interfaceClass === 7 ? 2 : 1) + (epIn ? 0.5 : 0);
+          if (!best || score > best.score) best = { iface: iface.interfaceNumber, alt: alt.alternateSetting, ep: ep.endpointNumber, epIn: epIn ? epIn.endpointNumber : null, score: score };
+        });
+      });
+      if (!best) { try { await d.close(); } catch (e) {} throw new Error('That device has no print connection. Pick the TSC printer.'); }
+      try {
+        await d.claimInterface(best.iface);
+        if (best.alt) await d.selectAlternateInterface(best.iface, best.alt);
+      } catch (e) {
+        throw new Error('The printer is busy with another app. Close TSC or label software, unplug and replug the printer, then connect again.');
+      }
+      this.dev = d; this.iface = best.iface; this.ep = best.ep; this.epIn = best.epIn;
+      showDevice();
+    },
+    async disconnect() {
+      const d = this.dev; this.dev = null;
+      if (d) { try { await d.releaseInterface(this.iface); } catch (e) {} try { await d.close(); } catch (e) {} }
+      showDevice();
+    },
+    async send(data) {
+      if (!this.dev) throw new Error('No printer connected.');
+      const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+      const CH = 16384;
+      for (let i = 0; i < bytes.length; i += CH) {
+        const r = await this.dev.transferOut(this.ep, bytes.subarray(i, i + CH));
+        if (r.status !== 'ok') throw new Error('The printer stopped accepting data (' + r.status + '). Check labels and the cable.');
+      }
+    },
+    // Ask the printer for its status byte (ESC ! ?). Returns a number, or null if it doesn't answer.
+    async status() {
+      if (!this.dev || this.epIn == null) return null;
+      await this.dev.transferOut(this.ep, new Uint8Array([0x1B, 0x21, 0x3F]));
+      const r = await Promise.race([
+        this.dev.transferIn(this.epIn, 64).catch(() => null),
+        new Promise((res) => setTimeout(() => res(null), 1500))
+      ]);
+      if (!r || r.status !== 'ok' || !r.data || r.data.byteLength === 0) return null;
+      return r.data.getUint8(0);
+    },
+    async restore() {
+      if (!this.supported) return;
+      try {
+        const ds = await navigator.usb.getDevices();
+        for (const d of ds) { try { await this.attach(d); return; } catch (e) { /* try next */ } }
+      } catch (e) {}
+    }
+  };
+
+  let printerError = null;
+  function devLabel(d) { return (d.productName || 'USB printer').trim(); }
+  function hex(n) { return n.toString(16).toUpperCase().padStart(4, '0'); }
+  function showDevice() {
+    const d = USB.dev, chip = $('chip');
+    chip.classList.toggle('on', !!d && !printerError);
+    chip.classList.toggle('err', !!d && !!printerError);
+    $('chipName').textContent = !d ? 'Connect printer' : (printerError ? 'Printer needs attention' : devLabel(d));
+    $('devName').textContent = d ? devLabel(d) + (d.manufacturerName ? ' by ' + d.manufacturerName : '') : 'No printer connected';
+    $('devIds').textContent = d ? 'USB ' + hex(d.vendorId) + ':' + hex(d.productId) : 'Plug the TSC in by USB (OTG cable on Android), then connect.';
+    $('devConnect').classList.toggle('hidden', !!d);
+    $('devDisconnect').classList.toggle('hidden', !d);
+    $('toolStatus').disabled = !d;
+  }
+
+  async function connect(all) {
+    if (!USB.supported) { toast('Use Chrome on Mac or Android to connect a USB printer.', 'bad'); return false; }
+    try { await USB.pick(all); printerError = null; showDevice(); toast('Connected to ' + devLabel(USB.dev), 'good'); return true; }
+    catch (e) {
+      if (e && e.name === 'NotFoundError') return false; // chooser dismissed
+      toast(e.message || String(e), 'bad'); return false;
+    }
+  }
+
+  async function checkStatus(silent) {
+    if (!USB.dev) return;
+    const line = $('statusLine');
+    if (USB.epIn == null) {
+      if (!silent) { line.className = 'statusline'; line.textContent = 'This printer connection can\'t report status. Check the light on the printer instead.'; }
+      return;
+    }
+    let b = null;
+    try { b = await USB.status(); } catch (e) { b = null; }
+    const d = T.decodeStatus(b);
+    if (d.known) printerError = d.ok ? null : d.problems[0];
+    showDevice();
+    line.className = 'statusline ' + (d.ok ? 'ok' : (d.known ? 'bad' : ''));
+    line.textContent = d.ok ? (d.printing ? 'Printing. No problems reported.' : 'Ready. No problems reported.') : d.problems.join(' ');
+    if (!silent) toast(d.ok ? 'Printer is ready' : d.problems[0], d.ok ? 'good' : 'bad');
+    else if (d.known && !d.ok) toast(d.problems[0], 'bad');
+  }
+
+  if (USB.supported) {
+    navigator.usb.addEventListener('disconnect', (e) => {
+      if (USB.dev && e.device === USB.dev) { USB.dev = null; printerError = null; showDevice(); toast('Printer unplugged.', 'bad'); }
+    });
+    navigator.usb.addEventListener('connect', async (e) => {
+      if (!USB.dev) { try { await USB.attach(e.device); toast('Connected to ' + devLabel(USB.dev), 'good'); } catch (err) {} }
+    });
+  } else {
+    $('nousb').classList.remove('hidden');
+  }
+
+  /* ---------- printing ---------- */
+  // makePayload: async () => { data (string|Uint8Array), total, error? }
+  async function runPrint(makePayload, entry) {
+    if (state.printing) return;
+    if (!USB.dev) { const ok = await connect(false); if (!ok) return; }
+    state.printing = true; updateDock();
+    let sent = false;
+    try {
+      const p = await makePayload();
+      if (!p || !p.total) throw new Error((p && p.error) || 'Nothing to print.');
+      entry.count = p.total;
+      sent = true;
+      await USB.send(p.data);
+      entry.ok = true;
+      printerError = null; showDevice();
+      toast('Sent ' + p.total + ' label' + (p.total === 1 ? '' : 's') + ' to the printer', 'good');
+      refresh(true);
+      setTimeout(() => checkStatus(true), 3500);
+    } catch (e) {
+      entry.ok = false; entry.err = e.message || String(e);
+      toast(entry.err, 'bad');
+    } finally {
+      state.printing = false;
+      if (sent) {
+        entry.ts = Date.now(); entry.roll = prof().name;
+        state.history.unshift(entry);
+        state.history = state.history.slice(0, 50);
+        store.set('history', state.history);
+        renderHistory();
+      }
+      updateDock();
+    }
+  }
+
+  function printBarcodes(jobs, summary, mode) {
+    return runPrint(async () => {
+      const job = T.buildJob(jobs, S(), measure);
+      return { data: job.tspl, total: job.total, error: job.errors[0] && job.errors[0].error };
+    }, { mode: mode, summary: summary, jobs: jobs });
+  }
+
+  function printPdfPages() {
+    const sel = selectedPages();
+    const names = Array.from(new Set(sel.map((p) => p.fileName)));
+    return runPrint(async () => {
+      await renderPages(sel, true);
+      const pages = sel.map((p) => ({
+        bm: state.prefs.invertBitmap ? Object.assign({}, p.bm, { data: p.bm.data.map((b) => ~b & 0xFF) }) : p.bm,
+        copies: state.copies
+      }));
+      const job = T.bitmapJob(pages, S());
+      return { data: job.bytes, total: job.total };
+    }, { mode: 'PDF', summary: names.join(', ') + ' (' + sel.length + ' page' + (sel.length === 1 ? '' : 's') + ')', jobs: null });
+  }
+
+  async function sendRaw(text, okMsg) {
+    if (!USB.dev) { const ok = await connect(false); if (!ok) return; }
+    try { await USB.send(text); toast(okMsg, 'good'); } catch (e) { toast(e.message || String(e), 'bad'); }
+  }
+
+  $('printBtn').addEventListener('click', () => {
+    if (state.tab === 'single') {
+      const l = singleLabel();
+      printBarcodes([{ label: l, copies: state.copies }], T.clean(l.top) || T.clean(l.value), 'Single');
+    } else if (state.tab === 'bulk') {
+      const jobs = bulkJobs();
+      const skipped = state.bulk.rows.length - jobs.length;
+      if (skipped) toast(skipped + ' row' + (skipped === 1 ? '' : 's') + ' with invalid codes will be skipped.');
+      printBarcodes(jobs, jobs.length + ' rows, ' + T.clean(jobs[0] && jobs[0].label.value) + (jobs.length > 1 ? ' and more' : ''), 'Bulk');
+    } else if (state.tab === 'pdf') {
+      printPdfPages();
+    }
+  });
+
+  /* ---------- tabs ---------- */
+  const TABS = ['single', 'bulk', 'pdf', 'history', 'printer'];
+  function showTab(t) {
+    state.tab = t;
+    document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-selected', String(x.dataset.tab === t)));
+    TABS.forEach((n) => $('tab-' + n).classList.toggle('hidden', n !== t));
+    if (t === 'pdf') { pdfRollWarn(); renderPages(state.pdf.pages, false); }
+    refresh();
+  }
+  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  /* ---------- segmented controls ---------- */
+  function segValue(name) {
+    if (name === 'type') return state.single.type;
+    if (name === 'bottomMode') return state.single.bottomMode;
+    if (name === 'textSize') return state.prefs.textSize;
+    if (name === 'bulkType') return state.bulk.type;
+    if (name === 'pdfFit') return state.prefs.pdfFit;
+  }
+  function setSeg(name, v) {
+    if (name === 'type') { state.single.type = v; store.set('single', state.single); hintForType(); }
+    if (name === 'bottomMode') { state.single.bottomMode = v; store.set('single', state.single); $('sBottom').classList.toggle('hidden', v !== 'custom'); }
+    if (name === 'textSize') { state.prefs.textSize = v; savePrefs(); }
+    if (name === 'bulkType') { state.bulk.type = v; saveBulk(); renderBulk(); }
+    if (name === 'pdfFit') {
+      state.prefs.pdfFit = v; savePrefs();
+      $('pdfFitHint').textContent = v === 'fill' ? 'Enlarges the page to cover the label. Edges may be cut off.' : 'Shrinks the page if needed so nothing is cut off.';
+      renderPages(state.pdf.pages, false);
+    }
+    paintSegs(); refresh();
+  }
+  function paintSegs() {
+    document.querySelectorAll('[data-seg]').forEach((seg) => {
+      const cur = segValue(seg.dataset.seg);
+      seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === cur)));
+    });
+  }
+  document.querySelectorAll('[data-seg]').forEach((seg) => seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (b) setSeg(seg.dataset.seg, b.dataset.v);
+  }));
+  function hintForType() {
+    const t = state.single.type;
+    $('sValueHint').textContent = t === 'EAN13' ? '12 or 13 digits. The check digit is added for you.'
+      : t === 'QR' ? 'Any text or a link. Longer text makes a denser code.'
+      : 'SKU, FNSKU or any text. Letters, numbers and symbols all work.';
+    $('sValue').setAttribute('inputmode', t === 'EAN13' ? 'numeric' : 'text');
+  }
+
+  /* ---------- single inputs ---------- */
+  [['sValue', 'value'], ['sTop', 'top'], ['sBottom', 'bottom']].forEach(([id, key]) => {
+    const el = $(id); el.value = state.single[key] || '';
+    el.addEventListener('input', () => { state.single[key] = el.value; store.set('single', state.single); refresh(); });
+  });
+  $('sBottom').classList.toggle('hidden', state.single.bottomMode !== 'custom');
+  $('sValue').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('printBtn').click(); } });
+
+  /* ---------- copies ---------- */
+  function setCopies(n) {
+    n = Math.max(1, Math.min(999, Math.floor(Number(n) || 1)));
+    state.copies = n; $('copies').value = n; updateDock();
+  }
+  $('cMinus').addEventListener('click', () => setCopies(state.copies - 1));
+  $('cPlus').addEventListener('click', () => setCopies(state.copies + 1));
+  $('copies').addEventListener('change', () => setCopies($('copies').value));
+
+  /* ---------- bulk ---------- */
+  function saveBulk() { store.set('bulk', state.bulk); }
+  function addItems(items, source) {
+    if (!items.length) { toast('No codes found in ' + source + '.', 'bad'); return; }
+    state.bulk.rows = state.bulk.rows.concat(items);
+    state.bulkSel = state.bulk.rows.length - items.length;
+    saveBulk(); renderBulk(); refresh(true);
+    toast('Added ' + items.length + ' row' + (items.length === 1 ? '' : 's') + ' from ' + source);
+  }
+  function renderBulk() {
+    const rows = state.bulk.rows, body = $('bulkBody');
+    $('bulkEmpty').classList.toggle('hidden', rows.length > 0);
+    $('bulkWrap').classList.toggle('hidden', rows.length === 0);
+    const total = rows.reduce((a, r) => a + (Number(r.copies) || 0), 0);
+    $('bulkHead').textContent = rows.length ? rows.length + ' rows, ' + total + ' labels' : 'Labels to print';
+    body.innerHTML = '';
+    rows.forEach((r, i) => {
+      const ok = T.validateValue(state.bulk.type, r.value);
+      const tr = document.createElement('tr');
+      if (i === state.bulkSel) tr.className = 'sel';
+      if (!ok.ok) tr.classList.add('bad');
+      const td1 = document.createElement('td');
+      const v = document.createElement('div'); v.className = 'v'; v.textContent = r.value; td1.appendChild(v);
+      const sub = !ok.ok ? ok.error : [r.top, r.bottom].filter(Boolean).join(' / ');
+      if (sub) { const t = document.createElement('div'); t.className = 't'; t.textContent = sub; td1.appendChild(t); }
+      const td2 = document.createElement('td');
+      const inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = 999; inp.value = r.copies; inp.inputMode = 'numeric';
+      inp.setAttribute('aria-label', 'Copies for ' + r.value);
+      inp.addEventListener('click', (e) => e.stopPropagation());
+      inp.addEventListener('change', () => { r.copies = Math.max(1, Math.min(999, parseInt(inp.value, 10) || 1)); inp.value = r.copies; saveBulk(); renderBulk(); updateDock(); });
+      td2.appendChild(inp);
+      const td3 = document.createElement('td');
+      const x = document.createElement('button'); x.className = 'x'; x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove ' + r.value);
+      x.addEventListener('click', (e) => { e.stopPropagation(); rows.splice(i, 1); state.bulkSel = Math.max(0, Math.min(state.bulkSel, rows.length - 1)); saveBulk(); renderBulk(); refresh(); });
+      td3.appendChild(x);
+      tr.append(td1, td2, td3);
+      tr.addEventListener('click', () => { state.bulkSel = i; renderBulk(); refresh(true); });
+      body.appendChild(tr);
+    });
+  }
+  $('bulkShowValue').checked = state.bulk.showValue !== false;
+  $('bulkShowValue').addEventListener('change', () => { state.bulk.showValue = $('bulkShowValue').checked; saveBulk(); refresh(); });
+  $('bulkClear').addEventListener('click', () => { state.bulk.rows = []; state.bulkSel = 0; saveBulk(); renderBulk(); refresh(); });
+  $('addPaste').addEventListener('click', () => {
+    const r = T.rowsToItems(T.parseDelimited($('paste').value));
+    if (r.items.length) $('paste').value = '';
+    addItems(r.items, 'pasted rows');
+  });
+  $('pickFile').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', () => { if ($('file').files[0]) readFile($('file').files[0]); $('file').value = ''; });
+  wireDrop($('drop'), (files) => { if (files[0]) readFile(files[0]); });
+
+  function wireDrop(el, onFiles) {
+    ['dragenter', 'dragover'].forEach((ev) => el.addEventListener(ev, (e) => { e.preventDefault(); el.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((ev) => el.addEventListener(ev, (e) => { e.preventDefault(); el.classList.remove('over'); }));
+    el.addEventListener('drop', (e) => onFiles(Array.from(e.dataTransfer.files || [])));
+  }
+
+  function readFile(f) {
+    const isXl = /\.xlsx?$/i.test(f.name);
+    const rd = new FileReader();
+    rd.onerror = () => toast('Couldn\'t read ' + f.name + '.', 'bad');
+    rd.onload = () => {
+      try {
+        let rows;
+        if (isXl) {
+          if (!window.XLSX) throw new Error('Excel support didn\'t load. Check the connection, or save the sheet as CSV.');
+          const wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+          rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
+        } else rows = T.parseDelimited(rd.result);
+        addItems(T.rowsToItems(rows).items, f.name);
+      } catch (e) { toast(e.message || 'Couldn\'t read ' + f.name + '.', 'bad'); }
+    };
+    if (isXl) rd.readAsArrayBuffer(f); else rd.readAsText(f);
+  }
+
+  /* ---------- PDF labels ---------- */
+  let pdfReady = null;
+  function ensurePdfJs() {
+    if (pdfReady) return pdfReady;
+    pdfReady = (async () => {
+      if (!window.pdfjsLib) throw new Error('PDF support didn\'t load. Check the internet connection and reload.');
+      try {
+        const r = await fetch(PDFJS_WORKER);
+        const t = await r.text();
+        pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], { type: 'text/javascript' }));
+      } catch (e) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      }
+      return pdfjsLib;
+    })();
+    pdfReady.catch(() => { pdfReady = null; });
+    return pdfReady;
+  }
+
+  async function addPdfs(files) {
+    files = files.filter((f) => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
+    if (!files.length) { toast('Choose a PDF file.', 'bad'); return; }
+    let lib;
+    try { lib = await ensurePdfJs(); } catch (e) { toast(e.message, 'bad'); return; }
+    const before = state.pdf.pages.length;
+    for (const f of files) {
+      try {
+        const doc = await lib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+        for (let i = 1; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i);
+          const vp = page.getViewport({ scale: 1 });
+          state.pdf.pages.push({ id: ++state.pdf.seq, fileName: f.name, pageNum: i, pageCount: doc.numPages, page: page, pw: vp.width, ph: vp.height, selected: true, bm: null, key: null, place: null, thumb: null });
+        }
+      } catch (e) {
+        toast('Couldn\'t open ' + f.name + '. Is it a valid PDF?', 'bad');
+      }
+    }
+    const added = state.pdf.pages.length - before;
+    if (added) {
+      state.pdf.focus = before;
+      toast('Added ' + added + ' page' + (added === 1 ? '' : 's'));
+    }
+    renderPdfList();
+    renderPages(state.pdf.pages, false);
+  }
+
+  function renderKey() { const { W, H } = dims(); return W + 'x' + H + '|' + state.prefs.pdfFit + '|' + state.prefs.pdfThreshold; }
+
+  async function renderOne(p) {
+    const key = renderKey();
+    if (p.key === key && p.bm) return;
+    const { W, H } = dims();
+    const pl = T.placePage(p.pw, p.ph, W, H, state.prefs.pdfFit);
+    const vp = p.page.getViewport({ scale: pl.scale, rotation: ((p.page.rotate || 0) + (pl.rotate ? 90 : 0)) % 360 });
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+    const cx = c.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+    await p.page.render({ canvasContext: cx, viewport: vp }).promise;
+    const L = document.createElement('canvas'); L.width = W; L.height = H;
+    const lx = L.getContext('2d', { willReadFrequently: true });
+    lx.fillStyle = '#fff'; lx.fillRect(0, 0, W, H);
+    lx.drawImage(c, pl.x, pl.y, pl.dw, pl.dh);
+    const px = lx.getImageData(0, 0, W, H).data;
+    const lum = new Uint8Array(W * H);
+    for (let i = 0, j = 0; i < lum.length; i++, j += 4) lum[i] = (px[j] * 299 + px[j + 1] * 587 + px[j + 2] * 114) / 1000;
+    p.bm = T.packBitmap(lum, W, H, state.prefs.pdfThreshold, false);
+    p.place = pl;
+    p.key = key;
+    p.pct = Math.round(pl.scale * 72 / DPI * 100);
+    // thumbnail
+    const full = document.createElement('canvas'); paintBitmap(full, p.bm);
+    const tw = 160, th = Math.round(tw * H / W);
+    const tc = p.thumb || document.createElement('canvas');
+    tc.width = tw; tc.height = th;
+    const tx = tc.getContext('2d'); tx.imageSmoothingQuality = 'high';
+    tx.drawImage(full, 0, 0, tw, th);
+    p.thumb = tc;
+  }
+
+  // Render pages that are out of date. Later calls supersede earlier ones.
+  async function renderPages(list, mustFinish) {
+    const gen = ++state.pdf.gen;
+    const todo = list.filter((p) => p.key !== renderKey() || !p.bm);
+    if (!todo.length) { state.pdf.rendering = false; $('pdfProgress').classList.add('hidden'); renderPdfList(); refresh(); return; }
+    state.pdf.rendering = true; updateDock();
+    const prog = $('pdfProgress');
+    // focused page first so the preview updates quickly
+    const f = state.pdf.pages[state.pdf.focus];
+    todo.sort((a, b) => (a === f ? -1 : b === f ? 1 : 0));
+    try {
+      for (let i = 0; i < todo.length; i++) {
+        if (gen !== state.pdf.gen && !mustFinish) return;
+        prog.classList.remove('hidden');
+        prog.textContent = 'Preparing page ' + (i + 1) + ' of ' + todo.length + '…';
+        await renderOne(todo[i]);
+        if (i === 0 || i === todo.length - 1) { renderPdfList(); refresh(); }
+      }
+    } catch (e) {
+      toast('Couldn\'t prepare a page: ' + (e.message || e), 'bad');
+      throw e;
+    } finally {
+      if (gen === state.pdf.gen || mustFinish) {
+        state.pdf.rendering = false; prog.classList.add('hidden');
+        renderPdfList(); refresh();
+      }
+    }
+  }
+
+  function renderPdfList() {
+    const pages = state.pdf.pages, box = $('pdfPages');
+    $('pdfEmpty').classList.toggle('hidden', pages.length > 0);
+    $('pdfTools').classList.toggle('hidden', pages.length === 0);
+    const sel = selectedPages().length;
+    $('pdfHead').textContent = pages.length ? pages.length + ' page' + (pages.length === 1 ? '' : 's') + ', ' + sel + ' selected' : 'Pages';
+    const f = pages[state.pdf.focus];
+    if (f && f.pct && state.prefs.pdfFit === 'fit') {
+      $('pdfFitHint').textContent = 'Shrinks the page if needed so nothing is cut off. This page prints at ' + f.pct + '% of its size.';
+    }
+    box.innerHTML = '';
+    pages.forEach((p, i) => {
+      const card = document.createElement('div');
+      card.className = 'pg' + (i === state.pdf.focus ? ' focus' : '') + (p.selected ? '' : ' off');
+      if (p.thumb) card.appendChild(p.thumb);
+      else { const ph = document.createElement('canvas'); ph.width = 160; ph.height = 240; card.appendChild(ph); }
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = p.selected;
+      cb.setAttribute('aria-label', 'Print page ' + p.pageNum + ' of ' + p.fileName);
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', () => { p.selected = cb.checked; renderPdfList(); updateDock(); });
+      card.appendChild(cb);
+      const cap = document.createElement('div'); cap.className = 'cap';
+      cap.textContent = (p.pageCount > 1 ? 'Page ' + p.pageNum + ', ' : '') + p.fileName;
+      cap.title = cap.textContent;
+      card.appendChild(cap);
+      card.addEventListener('click', () => { state.pdf.focus = i; renderPdfList(); refresh(true); });
+      box.appendChild(card);
+    });
+  }
+
+  function pdfRollWarn() {
+    const w = $('pdfRollWarn');
+    const s = S();
+    if (s.heightMm >= 100) { w.classList.add('hidden'); return; }
+    const big = state.profiles.find((p) => p.heightMm >= 100);
+    w.innerHTML = '';
+    const t = document.createElement('div');
+    t.textContent = 'The selected roll is ' + prof().name + '. Shipping labels need the 4×6 roll in the printer and selected here.';
+    w.appendChild(t);
+    if (big) {
+      const b = document.createElement('button'); b.className = 'btn'; b.type = 'button'; b.textContent = 'Switch to ' + big.name;
+      b.addEventListener('click', () => setRoll(big.id));
+      w.appendChild(b);
+    }
+    w.classList.remove('hidden');
+  }
+
+  $('pdfPick').addEventListener('click', () => $('pdfFile').click());
+  $('pdfFile').addEventListener('change', () => { const fs = Array.from($('pdfFile').files || []); $('pdfFile').value = ''; addPdfs(fs); });
+  wireDrop($('pdfDrop'), addPdfs);
+  $('pdfAll').addEventListener('click', () => { state.pdf.pages.forEach((p) => { p.selected = true; }); renderPdfList(); updateDock(); });
+  $('pdfNone').addEventListener('click', () => { state.pdf.pages.forEach((p) => { p.selected = false; }); renderPdfList(); updateDock(); });
+  $('pdfClear').addEventListener('click', () => { state.pdf.gen++; state.pdf.pages = []; state.pdf.focus = 0; state.pdf.rendering = false; $('pdfProgress').classList.add('hidden'); renderPdfList(); refresh(); });
+  $('pdfTh').value = state.prefs.pdfThreshold; $('pdfThOut').textContent = state.prefs.pdfThreshold;
+  let thT;
+  $('pdfTh').addEventListener('input', () => {
+    state.prefs.pdfThreshold = Number($('pdfTh').value); $('pdfThOut').textContent = state.prefs.pdfThreshold; savePrefs();
+    clearTimeout(thT); thT = setTimeout(() => renderPages(state.pdf.pages, false), 200);
+  });
+
+  /* ---------- history ---------- */
+  function renderHistory() {
+    const ul = $('hist'); ul.innerHTML = '';
+    $('histEmpty').classList.toggle('hidden', state.history.length > 0);
+    $('histTools').classList.toggle('hidden', state.history.length === 0);
+    state.history.forEach((h) => {
+      const li = document.createElement('li');
+      const n = document.createElement('div'); n.className = 'n'; n.textContent = h.count;
+      const w = document.createElement('div'); w.className = 'what';
+      const b = document.createElement('b'); b.textContent = h.summary || h.mode;
+      const s = document.createElement('span');
+      const d = new Date(h.ts);
+      s.textContent = h.mode + (h.roll ? ' on ' + h.roll : '') + ', ' + d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' +
+        d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) + (h.ok ? '' : '. Failed: ' + h.err);
+      if (!h.ok) s.className = 'err';
+      w.append(b, s);
+      li.append(n, w);
+      if (h.jobs) {
+        const btn = document.createElement('button'); btn.className = 'btn'; btn.type = 'button'; btn.textContent = 'Print again';
+        btn.addEventListener('click', () => printBarcodes(h.jobs, h.summary, h.mode));
+        li.appendChild(btn);
+      }
+      ul.appendChild(li);
+    });
+  }
+  $('histClear').addEventListener('click', () => { state.history = []; store.set('history', []); renderHistory(); });
+
+  /* ---------- rolls ---------- */
+  function fillRollSelect() {
+    const sel = $('rollSel'); sel.innerHTML = '';
+    state.profiles.forEach((p) => {
+      const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o);
+    });
+    sel.value = state.active;
+    $('rollDel').disabled = state.profiles.length < 2;
+  }
+  function setRoll(id, quiet) {
+    if (id === state.active) return;
+    state.active = id; saveProfiles();
+    fillRollSelect(); fillPrinterFields(); mCache.clear();
+    if (!quiet) $('calNudge').classList.remove('hidden');
+    if (state.tab === 'pdf') { pdfRollWarn(); renderPages(state.pdf.pages, false); }
+    refresh(true);
+  }
+  $('rollSel').addEventListener('change', () => setRoll($('rollSel').value));
+  $('nudgeX').addEventListener('click', () => $('calNudge').classList.add('hidden'));
+  $('nudgeCal').addEventListener('click', () => { $('calNudge').classList.add('hidden'); calibrate(); });
+  $('rollName').addEventListener('change', () => {
+    const v = $('rollName').value.trim(); if (!v) { $('rollName').value = prof().name; return; }
+    prof().name = v; saveProfiles(); fillRollSelect(); if (state.tab === 'pdf') pdfRollWarn();
+  });
+  $('rollAdd').addEventListener('click', () => {
+    const base = prof();
+    const p = Object.assign({}, base, { id: 'roll-' + Date.now(), name: 'New roll' });
+    state.profiles.push(p); saveProfiles();
+    setRoll(p.id, true);
+    $('rollName').focus(); $('rollName').select();
+    toast('Added a roll. Name it and enter its size.');
+  });
+  $('rollDel').addEventListener('click', () => {
+    if (state.profiles.length < 2) return;
+    if (!confirm('Delete the roll "' + prof().name + '"?')) return;
+    const gone = state.active;
+    state.profiles = state.profiles.filter((p) => p.id !== gone);
+    state.active = state.profiles[0].id; saveProfiles();
+    fillRollSelect(); fillPrinterFields(); refresh();
+    toast('Roll deleted');
+  });
+
+  /* ---------- printer settings (saved to the active roll) ---------- */
+  const fields = [['cW', 'widthMm'], ['cH', 'heightMm'], ['cGap', 'gapMm'], ['cSX', 'shiftX'], ['cSY', 'shiftY'], ['cSpeed', 'speed'], ['cDensity', 'density']];
+  function fillPrinterFields() {
+    const p = prof();
+    fields.forEach(([id, key]) => { $(id).value = p[key]; });
+    $('cDensityOut').textContent = p.density;
+    $('cFlip').checked = !!p.flip;
+    $('rollName').value = p.name;
+  }
+  fields.forEach(([id, key]) => {
+    const el = $(id);
+    el.addEventListener(el.type === 'range' ? 'input' : 'change', () => {
+      let v = Number(el.value);
+      if (!isFinite(v) || el.value === '') v = prof()[key];
+      const min = el.min !== '' ? Number(el.min) : -Infinity, max = el.max !== '' ? Number(el.max) : Infinity;
+      v = Math.max(min, Math.min(max, v)); el.value = v;
+      prof()[key] = v; saveProfiles();
+      if (key === 'density') $('cDensityOut').textContent = v;
+      mCache.clear(); refresh();
+    });
+  });
+  $('cFlip').addEventListener('change', () => { prof().flip = $('cFlip').checked; saveProfiles(); });
+  $('cInvert').checked = !!state.prefs.invertBitmap;
+  $('cInvert').addEventListener('change', () => { state.prefs.invertBitmap = $('cInvert').checked; savePrefs(); });
+
+  function calibrate() { sendRaw(T.utilityCommand('calibrate', S()), 'Calibrating. The printer will feed a few labels.'); }
+
+  $('chip').addEventListener('click', () => {
+    if (USB.dev) showTab('printer');
+    else connect(false);
+  });
+  $('devConnect').addEventListener('click', () => connect(false));
+  $('devAll').addEventListener('click', () => connect(true));
+  $('devDisconnect').addEventListener('click', () => USB.disconnect());
+  $('toolStatus').addEventListener('click', () => checkStatus(false));
+  $('toolTest').addEventListener('click', () => {
+    const s = S();
+    printBarcodes([{ label: { type: 'CODE128', value: 'TEST-12345', top: 'PrintLens test', bottom: s.widthMm + 'x' + s.heightMm + 'mm D' + s.density }, copies: 1 }], 'Test label', 'Test');
+  });
+  $('toolFeed').addEventListener('click', () => sendRaw(T.utilityCommand('feed', S()), 'Fed one label'));
+  $('toolCal').addEventListener('click', calibrate);
+  $('rawSend').addEventListener('click', () => {
+    const t = $('raw').value.replace(/\r?\n/g, '\r\n');
+    sendRaw(t.endsWith('\r\n') ? t : t + '\r\n', 'Commands sent');
+  });
+
+  window.addEventListener('resize', () => sizeRoll());
+
+  /* ---------- start ---------- */
+  fillRollSelect(); fillPrinterFields();
+  hintForType(); paintSegs(); renderBulk(); renderPdfList(); renderHistory(); showDevice();
+  if (state.prefs.pdfFit === 'fill') $('pdfFitHint').textContent = 'Enlarges the page to cover the label. Edges may be cut off.';
+  setCopies(1); refresh();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => refresh());
+  USB.restore();
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

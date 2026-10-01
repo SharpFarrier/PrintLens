@@ -1,0 +1,54 @@
+PrintLens v2 — shipping label PDFs + roll presets + printer status
+==================================================================
+
+WHAT'S NEW
+1. PDF tab: drop the label PDF from your shipping tool. Every page becomes
+   one 4x6 label, converted to crisp black-and-white at the printer's 203dpi
+   and sent straight to the TSC (no print dialog). Multi-page PDFs print in
+   one go; tick or untick pages; copies per page. The preview shows exactly
+   what will print.
+   - Your BlueDart PDF page is 4 x 6.58 in (the Courier/Seq/Dispatch band on
+     top), so "Whole page" prints it at 91%. "Fill label" prints it full
+     width and crops the top/bottom instead.
+   - "Light grey detail" slider controls how grey text/shading converts.
+2. Rolls: "50x25 barcode" and "4x6 shipping" are saved presets, each with its
+   own size, gap, darkness and position. Switch from the Roll picker under
+   the preview; it reminds you to calibrate after a roll change. Add/rename/
+   delete rolls on the Printer tab.
+3. Printer status: "Check printer status" on the Printer tab asks the TSC
+   what's wrong (head open, gap not found, out of labels, paused) and says
+   it in plain words. It also checks automatically after each print, and the
+   top chip turns red when the printer needs attention.
+
+FILES (complete replacements)
+  index.html  tspl.js  sw.js  manifest.webmanifest  icon.svg  APPLY.txt
+
+FIRST-TIME DEPLOY (your earlier push didn't go through — the repo doesn't exist yet)
+1. Create an empty repo named PrintLens at github.com/SharpFarrier (no README).
+2. Unzip PrintLens.zip into Downloads, then in Terminal:
+
+   cd ~/Downloads/PrintLens && ls
+
+   You should see index.html tspl.js sw.js manifest.webmanifest icon.svg APPLY.txt.
+   Then:
+
+   git init && git add index.html tspl.js manifest.webmanifest sw.js icon.svg APPLY.txt && git commit -m "PrintLens v2: PDF shipping labels, roll presets, printer status" && git branch -M main && git remote add origin https://github.com/SharpFarrier/PrintLens.git && git push -u origin main
+
+3. Repo Settings -> Pages -> Deploy from a branch -> main / (root) -> Save.
+4. Live in ~1 minute at https://sharpfarrier.github.io/PrintLens/
+
+IF YOU ALREADY CREATED THE REPO AND PUSHED v1 FROM THIS FOLDER
+   cd ~/Downloads/PrintLens && git add index.html tspl.js sw.js APPLY.txt && git commit -m "PrintLens v2: PDF shipping labels, roll presets, printer status" && git push
+
+FIRST TEST WITH THE 4x6 ROLL
+1. Roll picker -> 4x6 shipping. Measure the gap on your roll; if it isn't
+   3mm, fix it on the Printer tab.
+2. Printer tab -> Calibrate gap sensor (feeds a few labels).
+3. PDF tab -> choose labels-2026-10-01.pdf -> Print 1 label.
+4. Scan the AWB barcode. Faint? raise Darkness. Solid black block? turn on
+   "Swap black and white in PDF labels" on the Printer tab.
+5. If the light goes red, tap "Check printer status" — it tells you why.
+
+NOTE: settings saved while testing on localhost don't carry over to the
+GitHub Pages address (browsers keep them per site). Re-check the roll
+values once on each device.

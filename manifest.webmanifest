@@ -1,0 +1,13 @@
+{
+  "name": "PrintLens",
+  "short_name": "PrintLens",
+  "description": "Print barcode labels to the warehouse TSC printer over USB.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
